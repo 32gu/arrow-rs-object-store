@@ -578,7 +578,9 @@ fn lexy_sort<'a>(
 #[derive(Deserialize, Debug)]
 struct OAuthTokenResponse {
     access_token: String,
-    expires_in: u64,
+    /// expires_in may not be present in some Azure environments (e.g., App Service/Functions)
+    #[serde(default)]
+    expires_in: Option<u64>,
 }
 
 /// Encapsulates the logic to perform an OAuth token challenge
@@ -645,7 +647,8 @@ impl TokenProvider for ClientSecretOAuthProvider {
 
         Ok(TemporaryToken {
             token: Arc::new(AzureCredential::BearerToken(response.access_token)),
-            expiry: Some(Instant::now() + Duration::from_secs(response.expires_in)),
+            // Default to 1 hour if expires_in is not provided
+            expiry: Some(Instant::now() + Duration::from_secs(response.expires_in.unwrap_or(3600))),
         })
     }
 }
@@ -693,8 +696,12 @@ impl ImdsManagedIdentityProvider {
         msi_res_id: Option<String>,
         msi_endpoint: Option<String>,
     ) -> Self {
-        let msi_endpoint = msi_endpoint
-            .unwrap_or_else(|| "http://169.254.169.254/metadata/identity/oauth2/token".to_owned());
+        let msi_endpoint = msi_endpoint.unwrap_or_else(|| {
+            // Try Azure App Service/Functions environment variables first
+            std::env::var("IDENTITY_ENDPOINT")
+                .or_else(|_| std::env::var("MSI_ENDPOINT"))
+                .unwrap_or_else(|_| "http://169.254.169.254/metadata/identity/oauth2/token".to_owned())
+        });
 
         Self {
             msi_endpoint,
@@ -831,7 +838,8 @@ impl TokenProvider for WorkloadIdentityOAuthProvider {
 
         Ok(TemporaryToken {
             token: Arc::new(AzureCredential::BearerToken(response.access_token)),
-            expiry: Some(Instant::now() + Duration::from_secs(response.expires_in)),
+            // Default to 1 hour if expires_in is not provided
+            expiry: Some(Instant::now() + Duration::from_secs(response.expires_in.unwrap_or(3600))),
         })
     }
 }

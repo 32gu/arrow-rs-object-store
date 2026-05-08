@@ -697,7 +697,7 @@ impl ImdsManagedIdentityProvider {
         msi_endpoint: Option<String>,
     ) -> Self {
         let msi_endpoint = msi_endpoint.unwrap_or_else(|| {
-            // Try Azure App Service/Functions environment variables first
+            // Try Azure App Service/Functions environment variables first    
             std::env::var("IDENTITY_ENDPOINT")
                 .or_else(|_| std::env::var("MSI_ENDPOINT"))
                 .unwrap_or_else(|_| "http://169.254.169.254/metadata/identity/oauth2/token".to_owned())

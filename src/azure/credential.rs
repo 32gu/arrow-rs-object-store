@@ -703,6 +703,13 @@ impl ImdsManagedIdentityProvider {
                 .unwrap_or_else(|_| "http://169.254.169.254/metadata/identity/oauth2/token".to_owned())
         });
 
+        // If client_id not provided explicitly, fall back to environment variables.
+        // This is needed for User-assigned Managed Identity in Azure Container Apps,
+        // where the builder may not pass client_id even when the env var is set.
+        let client_id = client_id
+            .or_else(|| std::env::var("AZURE_CLIENT_ID").ok())
+            .or_else(|| std::env::var("AZURE_STORAGE_CLIENT_ID").ok());
+
         Self {
             msi_endpoint,
             client_id,
